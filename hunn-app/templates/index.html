@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disposition – Begrünungen Hunn</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+  :root { --green:#1a6b1a; --green-light:#e8f5e8; --green-mid:#2d8a2d; }
+  body { background:#f8faf8; font-size:.9rem; }
+  .navbar { background:var(--green) !important; }
+  .navbar-brand img { height:32px; }
+  .section-card { background:#fff; border-radius:10px; border:1px solid #dce8dc; box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:1.2rem; }
+  .section-header { background:var(--green); color:#fff; padding:.6rem 1rem; border-radius:9px 9px 0 0; font-weight:600; font-size:.95rem; display:flex; align-items:center; gap:.5rem; }
+  .section-body { padding:1rem; }
+  .badge-pill { background:var(--green-light); color:var(--green); border:1px solid #b2d8b2; border-radius:20px; padding:2px 10px; font-size:.78rem; font-weight:600; }
+  .calc-box { background:var(--green-light); border:1px solid #b2d8b2; border-radius:8px; padding:.7rem 1rem; }
+  .calc-val { font-size:1.3rem; font-weight:700; color:var(--green); }
+  .calc-lbl { font-size:.73rem; color:#555; text-transform:uppercase; letter-spacing:.05em; }
+
+  /* Products table */
+  #products-table { font-size:.83rem; }
+  #products-table thead th { background:var(--green); color:#fff; font-weight:600; text-align:center; white-space:nowrap; padding:.4rem .5rem; }
+  #products-table tbody tr:nth-child(even) { background:#f7fbf7; }
+  #products-table td { vertical-align:middle; padding:.35rem .5rem; }
+  .supplier-val { color:#888; font-size:.8rem; }
+  .suggestion-val { color:var(--green-mid); font-weight:600; font-size:.8rem; }
+  .used-input { width:70px; border:1px solid #b2d8b2; border-radius:5px; text-align:center; padding:2px 5px; background:#fff; }
+  .used-input:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 2px rgba(26,107,26,.2); }
+  .calc-cell { text-align:center; font-weight:500; }
+  .total-row td { background:#d4edda !important; font-weight:700; }
+  .seed-select { font-size:.83rem; }
+
+  /* Sticky sidebar on wide screens */
+  @media(min-width:992px) {
+    .sidebar-sticky { position:sticky; top:72px; max-height:calc(100vh - 80px); overflow-y:auto; }
+  }
+
+  .btn-pdf { background:var(--green); color:#fff; font-weight:600; border:none; padding:.6rem 1.6rem; border-radius:8px; }
+  .btn-pdf:hover { background:var(--green-mid); color:#fff; }
+  .form-control, .form-select { font-size:.85rem; }
+  label { font-weight:500; font-size:.82rem; color:#333; }
+  .form-check-label { font-weight:500; }
+  hr.section-hr { border-color:#b2d8b2; }
+
+  /* Rapport chantier */
+  .rapport-table { font-size:.82rem; }
+  .rapport-table td, .rapport-table th { padding:.3rem .4rem; }
+
+  /* Spinner */
+  #pdf-spinner { display:none; }
+  .loading #pdf-spinner { display:inline-block; }
+  .loading #pdf-icon  { display:none; }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark sticky-top shadow-sm">
+  <div class="container-fluid">
+    <span class="navbar-brand d-flex align-items-center gap-2">
+      <img src="/static/logo.png" alt="Begrünungen Hunn">
+    </span>
+    <span class="text-white fw-semibold" style="font-size:1.05rem;">Disposition – Calcul de chantier</span>
+    <button class="btn btn-pdf ms-auto" id="btn-pdf" onclick="generatePDF()">
+      <span id="pdf-icon"><i class="bi bi-file-earmark-pdf"></i> Générer PDF</span>
+      <span id="pdf-spinner" class="spinner-border spinner-border-sm"></span>
+    </button>
+  </div>
+</nav>
+
+<div class="container-fluid py-3 px-3">
+<div class="row g-3">
+
+<!-- ═══ LEFT SIDEBAR – Config ═══ -->
+<div class="col-lg-4 col-xl-3">
+<div class="sidebar-sticky">
+
+  <!-- Projet -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-folder2"></i> Projet</div>
+    <div class="section-body">
+      <div class="row g-2">
+        <div class="col-6">
+          <label>Projet N°</label>
+          <input class="form-control" id="projet_no" placeholder="ex: 2026-042">
+        </div>
+        <div class="col-6">
+          <label>Date prévue</label>
+          <input class="form-control" type="date" id="date_prevue" value="{{ today }}">
+        </div>
+        <div class="col-12">
+          <label>Chantier</label>
+          <input class="form-control" id="chantier" placeholder="Nom du chantier">
+        </div>
+        <div class="col-12">
+          <label>Technicien</label>
+          <select class="form-select" id="technicien">
+            <option value="">— sélectionner —</option>
+            {% for t in technicians %}
+            <option value="{{ t.name }} ({{ t.initials }})">{{ t.name }} – {{ t.initials }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6">
+          <label>Contact</label>
+          <input class="form-control" id="contact" placeholder="Nom contact">
+        </div>
+        <div class="col-6">
+          <label>Téléphone</label>
+          <input class="form-control" id="telephone" placeholder="079 …">
+        </div>
+        <div class="col-12">
+          <label>Entreprise</label>
+          <input class="form-control" id="entreprise" placeholder="Nom entreprise">
+        </div>
+        <div class="col-12">
+          <label>Remarque</label>
+          <textarea class="form-control" id="remarque" rows="2" placeholder="Remarques…"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Machine Config -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-gear-fill"></i> Configuration machine</div>
+    <div class="section-body">
+      <div class="row g-2">
+        <div class="col-12">
+          <label>Surface (m²)</label>
+          <input class="form-control fw-bold" type="number" id="surface" value="4000" min="0" oninput="recalculate()">
+        </div>
+        <div class="col-12">
+          <label>Technique</label>
+          <div class="d-flex gap-2 flex-wrap mt-1">
+            {% for t in ["ASD","ASDC","Entretien"] %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="technique" id="tech_{{t}}" value="{{t}}" onchange="recalculate()" {{ 'checked' if t=='ASD' }}>
+              <label class="form-check-label" for="tech_{{t}}">{{t}}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12">
+          <label>Erosion</label>
+          <div class="d-flex gap-2 flex-wrap mt-1">
+            {% for e in ["SANS","AMU 1","AMU 2","AMECO","PROTECT"] %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="erosion" id="ero_{{loop.index}}" value="{{e}}" onchange="recalculate()" {{ 'checked' if e=='SANS' }}>
+              <label class="form-check-label" for="ero_{{loop.index}}">{{e}}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12">
+          <label>Seeder / Machine</label>
+          <select class="form-select" id="seeder" onchange="recalculate()">
+            {% for m in machine_keys %}
+            <option value="{{m}}">{{m}}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6">
+          <label>Humus / Substrat</label>
+          <select class="form-select" id="humus" onchange="recalculate()">
+            <option value="SANS">SANS</option>
+            <option value="AVEC">AVEC</option>
+            <option value="SUBSTRAT">SUBSTRAT</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label>Géotextile</label>
+          <select class="form-select" id="geotextile">
+            <option value="">— aucun —</option>
+            <option>KG 0700 – 2m</option>
+            <option>KG 0400 – 2m</option>
+            <option>KG 0400 – 3m</option>
+            <option>KG 0400 – 4m</option>
+            <option>Jute SS 500</option>
+            <option>FORTRAC N</option>
+            <option>FORTRAC UV</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <div class="form-check form-switch mt-1">
+            <input class="form-check-input" type="checkbox" id="rincer" onchange="recalculate()">
+            <label class="form-check-label" for="rincer">Rincer après travaux</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculated machine summary -->
+      <div class="calc-box mt-3">
+        <div class="row text-center g-2">
+          <div class="col-6">
+            <div class="calc-lbl">Machines</div>
+            <div class="calc-val" id="out-machines">—</div>
+          </div>
+          <div class="col-6">
+            <div class="calc-lbl">m²/machine</div>
+            <div class="calc-val" id="out-m2">—</div>
+          </div>
+          <div class="col-6">
+            <div class="calc-lbl">Eau/machine</div>
+            <div class="calc-val" id="out-eau">— L</div>
+          </div>
+          <div class="col-6">
+            <div class="calc-lbl">Max m²/machine</div>
+            <div class="calc-val" id="out-maxm2">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Informations chantier -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-info-circle"></i> Informations chantier</div>
+    <div class="section-body">
+      <div class="row g-2">
+        <div class="col-6"><label>Hydrante N°</label><input class="form-control" id="hydrante"></div>
+        <div class="col-6"><label>Pomper</label><input class="form-control" id="pomper"></div>
+        <div class="col-6"><label>Accès</label><input class="form-control" id="acces"></div>
+        <div class="col-6"><label>Tuyaux</label><input class="form-control" id="tuyaux"></div>
+        <div class="col-12"><label>Responsable</label><input class="form-control" id="responsable"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /sidebar-sticky -->
+</div><!-- /col -->
+
+<!-- ═══ RIGHT – Main content ═══ -->
+<div class="col-lg-8 col-xl-9">
+
+  <!-- Products Section -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-table"></i> Produits & Calculs <span class="badge-pill ms-2" id="total-badge">—</span></div>
+    <div class="section-body">
+
+      <!-- Seed selection rows -->
+      <div class="mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="fw-semibold" style="color:var(--green)"><i class="bi bi-flower1"></i> Saatgut (Semences)</span>
+          <button class="btn btn-sm btn-outline-success" onclick="addSeedRow()"><i class="bi bi-plus"></i> Ajouter semence</button>
+        </div>
+        <div id="seed-rows">
+          <!-- seed rows injected by JS -->
+        </div>
+      </div>
+
+      <hr class="section-hr">
+
+      <!-- Product table -->
+      <div class="table-responsive">
+        <table class="table table-hover" id="products-table">
+          <thead>
+            <tr>
+              <th style="width:30%">Produit</th>
+              <th>g/m²<br><small>Fournisseur</small></th>
+              <th>g/m²<br><small>Suggestion</small></th>
+              <th>g/m²<br><small style="color:#ffdd88">Utilisé ✎</small></th>
+              <th>kg/sac</th>
+              <th>Sac/<br>machine</th>
+              <th>Total<br>sacs</th>
+              <th>Total<br>kg</th>
+            </tr>
+          </thead>
+          <tbody id="product-tbody">
+            <!-- filled by JS -->
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="6" class="text-end pe-3">TOTAL</td>
+              <td class="text-center" id="total-sacs">—</td>
+              <td class="text-center" id="total-kg">—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accessories -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-boxes"></i> Nattes / Crochets / Divers</div>
+    <div class="section-body">
+      <div class="row g-2">
+        <div class="col-12 col-md-6">
+          <label class="fw-semibold mb-1">Nattes</label>
+          <div class="row g-1">
+            {% for item in ["KG0400 – 2m","KG0400 – 3m","KG0400 – 4m","KG0700 – 2m"] %}
+            <div class="col-6 col-xl-3">
+              <label style="font-size:.78rem;">{{item}}</label>
+              <input class="form-control form-control-sm acc-input" data-acc="nattes" data-key="{{item}}" type="number" min="0" placeholder="m²">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="fw-semibold mb-1">Crochets</label>
+          <div class="row g-1">
+            {% for item in ["UBB20a","UBB30a","H20a","H30a"] %}
+            <div class="col-6 col-xl-3">
+              <label style="font-size:.78rem;">{{item}}</label>
+              <input class="form-control form-control-sm acc-input" data-acc="crochets" data-key="{{item}}" type="number" min="0" placeholder="pcs">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="fw-semibold mb-1">HPQ / Fixations</label>
+          <div class="row g-1">
+            {% for item in ["HPQ20 (bois)","HPQ30 (bois)","FN15 (clous roche)","FN21 (clous roche)","FNS (rondelle)"] %}
+            <div class="col-6 col-xl-4">
+              <label style="font-size:.78rem;">{{item}}</label>
+              <input class="form-control form-control-sm acc-input" data-acc="hpq" data-key="{{item}}" type="number" min="0" placeholder="pcs">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <label>Divers</label>
+          <textarea class="form-control form-control-sm" id="divers" rows="3" placeholder="Articles divers…"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rapport chantier -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-journal-text"></i> Rapport chantier</div>
+    <div class="section-body">
+      <div class="row g-2 mb-3">
+        <div class="col-12">
+          <label class="fw-semibold">Noms des collaborateurs</label>
+          <div class="row g-1 mt-1">
+            {% for p in ["Gani","Antonin","Abdel","Toni"] %}
+            <div class="col-6 col-sm-3">
+              <input class="form-control form-control-sm rapport-name" placeholder="{{p}}">
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered rapport-table">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Travail (h)</th>
+              <th>Trajet (h)</th>
+              <th>Régie (h)</th>
+              <th colspan="4">Notes collaborateurs</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rapport-tbody">
+            <!-- rows added by JS -->
+          </tbody>
+        </table>
+        <button class="btn btn-sm btn-outline-success" onclick="addRapportRow()"><i class="bi bi-plus"></i> Ajouter journée</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Véhicules -->
+  <div class="section-card">
+    <div class="section-header"><i class="bi bi-truck"></i> Véhicules & Machines</div>
+    <div class="section-body">
+      <div class="row g-2">
+        <div class="col-12"><label class="fw-semibold">Véhicules</label></div>
+        {% for v in ["(22) MAN FIX","(16) NISSAN Autmat","(11) NISSAN P-Up"] %}
+        <div class="col-6 col-sm-4 col-lg-4">
+          <label style="font-size:.8rem;">{{v}}</label>
+          <input class="form-control form-control-sm veh-input" data-key="{{v}}" type="number" min="0" step="0.5" placeholder="heures">
+        </div>
+        {% endfor %}
+        <div class="col-12"><label class="fw-semibold mt-1">Seeder</label></div>
+        {% for v in ["(45) S-FIX","(44) S-Mini","(31) S-Muli"] %}
+        <div class="col-6 col-sm-4 col-lg-4">
+          <label style="font-size:.8rem;">{{v}}</label>
+          <input class="form-control form-control-sm veh-input" data-key="{{v}}" type="number" min="0" step="0.5" placeholder="heures">
+        </div>
+        {% endfor %}
+        <div class="col-12"><label class="fw-semibold mt-1">Machines</label></div>
+        {% for v in ["(303) Débroussailleuses","(301-302) Rapid","(30) Petites machines"] %}
+        <div class="col-6 col-sm-4 col-lg-4">
+          <label style="font-size:.8rem;">{{v}}</label>
+          <input class="form-control form-control-sm veh-input" data-key="{{v}}" type="number" min="0" step="0.5" placeholder="heures">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom PDF button -->
+  <div class="d-flex justify-content-end mb-4">
+    <button class="btn btn-pdf btn-lg" onclick="generatePDF()">
+      <i class="bi bi-file-earmark-pdf"></i> Générer PDF / Imprimer
+    </button>
+  </div>
+
+</div><!-- /right col -->
+</div><!-- /row -->
+</div><!-- /container -->
+
+<script>
+// ─── Seed data from backend ───────────────────────────────────────────────────
+const SAATGUT = {{ saatgut | tojson }};
+// [{0:name, 1:g_m2, 2:kg_sac}, ...]
+
+// Map name -> {g_m2, kg_sac}
+const saatgutMap = {};
+SAATGUT.forEach(s => { if(s[0] !== '—') saatgutMap[s[0]] = {g_m2: s[1], kg_sac: s[2]}; });
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let calcResult = null;
+let seedRows   = [];   // [{id, name, g_m2, kg_sac, used_g}]
+let auxOverrides = {}; // key -> used_g override
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  addSeedRow();
+  addSeedRow();
+  addRapportRow();
+  recalculate();
+});
+
+// ─── Seed rows ────────────────────────────────────────────────────────────────
+let seedCounter = 0;
+function addSeedRow() {
+  const id = ++seedCounter;
+  seedRows.push({id, name:'', g_m2:null, kg_sac:null, used_g:null});
+
+  const options = SAATGUT.map(s =>
+    `<option value="${s[0]}" data-g="${s[1] ?? ''}" data-k="${s[2] ?? ''}">${s[0]}</option>`
+  ).join('');
+
+  const div = document.createElement('div');
+  div.className = 'row g-1 align-items-center mb-1 seed-row';
+  div.dataset.id = id;
+  div.innerHTML = `
+    <div class="col-lg-6">
+      <select class="form-select form-select-sm seed-select" onchange="onSeedSelect(${id}, this)">
+        ${options}
+      </select>
+    </div>
+    <div class="col-2 col-lg-1">
+      <input type="number" class="form-control form-control-sm text-center seed-gm2" min="0" step="0.5"
+             placeholder="g/m²" title="g/m² utilisé" oninput="onSeedGm2(${id}, this)" disabled>
+    </div>
+    <div class="col-2 col-lg-1 text-center supplier-val" id="seed-sup-${id}" title="g/m² fournisseur">—</div>
+    <div class="col-2 col-lg-1 text-center" style="font-size:.78rem;color:#999">kg/sac<br><span id="seed-kps-${id}">—</span></div>
+    <div class="col-2 col-lg-1 text-center" style="font-size:.78rem;" id="seed-sacs-${id}">—</div>
+    <div class="col-2 col-lg-1 text-center fw-semibold" style="font-size:.78rem;" id="seed-kg-${id}">—</div>
+    <div class="col-1">
+      <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeSeedRow(${id})"><i class="bi bi-x"></i></button>
+    </div>`;
+  document.getElementById('seed-rows').appendChild(div);
+}
+
+function removeSeedRow(id) {
+  seedRows = seedRows.filter(r => r.id !== id);
+  document.querySelector(`.seed-row[data-id="${id}"]`)?.remove();
+  recalculate();
+}
+
+function onSeedSelect(id, sel) {
+  const opt  = sel.selectedOptions[0];
+  const g    = parseFloat(opt.dataset.g) || null;
+  const k    = parseFloat(opt.dataset.k) || null;
+  const name = sel.value;
+  const row  = seedRows.find(r => r.id === id);
+  if (row) { row.name = name; row.g_m2 = g; row.kg_sac = k; row.used_g = g; }
+
+  const gInput = sel.closest('.seed-row').querySelector('.seed-gm2');
+  if (name === '—' || !g) {
+    gInput.value = ''; gInput.disabled = true;
+  } else {
+    gInput.value = g; gInput.disabled = false;
+  }
+  recalculate();
+}
+
+function onSeedGm2(id, inp) {
+  const row = seedRows.find(r => r.id === id);
+  if (row) { row.used_g = parseFloat(inp.value) || row.g_m2; }
+  recalculate();
+}
+
+// ─── Aux product overrides ────────────────────────────────────────────────────
+function onAuxGm2Change(key, inp) {
+  auxOverrides[key] = parseFloat(inp.value) || null;
+  recalculate();
+}
+
+// ─── Main recalculate ─────────────────────────────────────────────────────────
+async function recalculate() {
+  const payload = buildPayload();
+  try {
+    const res  = await fetch('/calculate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    calcResult = await res.json();
+    renderResults(calcResult);
+  } catch(e) { console.error(e); }
+}
+
+function buildPayload() {
+  const seeds = seedRows
+    .filter(r => r.name && r.name !== '—' && r.g_m2)
+    .map(r => ({name:r.name, g_m2:r.g_m2, kg_sac:r.kg_sac, used_g:r.used_g || r.g_m2}));
+
+  const payload = {
+    surface:   parseFloat(document.getElementById('surface').value) || 0,
+    technique: document.querySelector('input[name="technique"]:checked')?.value || 'ASD',
+    erosion:   document.querySelector('input[name="erosion"]:checked')?.value  || 'SANS',
+    seeder:    document.getElementById('seeder').value,
+    rincer:    document.getElementById('rincer').checked,
+    humus:     document.getElementById('humus').value,
+    seeds,
+  };
+
+  // Aux g/m² overrides
+  Object.entries(auxOverrides).forEach(([k,v]) => { payload[`used_g_${k}`] = v; });
+
+  return payload;
+}
+
+// ─── Render results ───────────────────────────────────────────────────────────
+function renderResults(r) {
+  // Machine summary
+  document.getElementById('out-machines').textContent = r.machines || '—';
+  document.getElementById('out-m2').textContent       = r.m2_machine ? `${r.m2_machine} m²` : '—';
+  document.getElementById('out-eau').textContent      = r.eau_machine ? `${r.eau_machine} L` : '—';
+  document.getElementById('out-maxm2').textContent    = r.max_m2 ? `${r.max_m2} m²` : '—';
+
+  // Update seed row displays
+  if (r.seed_rows) {
+    r.seed_rows.forEach((sr, i) => {
+      const domRow = document.querySelectorAll('.seed-row')[i];
+      if (!domRow) return;
+      const id = parseInt(domRow.dataset.id);
+      document.getElementById(`seed-sup-${id}`)?.setAttribute('title', `Fournisseur: ${sr.supplier_g} g/m²`);
+      document.getElementById(`seed-sup-${id}`) && (document.getElementById(`seed-sup-${id}`).textContent = sr.supplier_g || '—');
+      document.getElementById(`seed-kps-${id}`) && (document.getElementById(`seed-kps-${id}`).textContent = sr.kg_sac || '—');
+      document.getElementById(`seed-sacs-${id}`) && (document.getElementById(`seed-sacs-${id}`).textContent = sr.total_sacs || '—');
+      document.getElementById(`seed-kg-${id}`) && (document.getElementById(`seed-kg-${id}`).textContent = sr.total_kg ? `${sr.total_kg} kg` : '—');
+    });
+  }
+
+  // Aux products table
+  const tbody = document.getElementById('product-tbody');
+  tbody.innerHTML = '';
+  let totalSacs = 0, totalKg = 0;
+
+  const allRows = [...(r.seed_rows || []), ...(r.aux_rows || [])];
+
+  allRows.forEach(row => {
+    if (!row.supplier_g && !row.used_g) return;
+    const tr = document.createElement('tr');
+    const suppG   = row.supplier_g  ?? '—';
+    const suggG   = row.suggestion_g ?? '—';
+    const usedG   = row.used_g      ?? row.supplier_g ?? 0;
+    const kgSac   = row.kg_sac      ?? '—';
+    const k       = row.k           ?? 0;
+    const tsacs   = row.total_sacs  ?? 0;
+    const tkg     = row.total_kg    ?? 0;
+    const key     = row.key || '';
+
+    tr.innerHTML = `
+      <td><span class="fw-semibold">${row.name}</span></td>
+      <td class="text-center supplier-val">${suppG !== '—' ? suppG : ''}</td>
+      <td class="text-center suggestion-val">${suggG !== '—' ? suggG : ''}</td>
+      <td class="text-center">
+        <input class="used-input" type="number" step="0.5" min="0" value="${usedG}"
+               ${key ? `oninput="onAuxGm2Change('${key}', this)"` : ''}
+               ${!key ? 'disabled' : ''}>
+      </td>
+      <td class="calc-cell">${kgSac}</td>
+      <td class="calc-cell">${k ? k.toFixed(2) : '—'}</td>
+      <td class="calc-cell fw-bold">${tsacs || '—'}</td>
+      <td class="calc-cell fw-bold">${tkg ? tkg + ' kg' : '—'}</td>`;
+    tbody.appendChild(tr);
+    totalSacs += tsacs || 0;
+    totalKg   += tkg   || 0;
+  });
+
+  document.getElementById('total-sacs').textContent = totalSacs || '—';
+  document.getElementById('total-kg').textContent   = totalKg   ? `${totalKg.toFixed(1)} kg` : '—';
+  document.getElementById('total-badge').textContent = totalSacs ? `${totalSacs} sacs · ${totalKg.toFixed(0)} kg` : '—';
+}
+
+// ─── Rapport chantier rows ────────────────────────────────────────────────────
+let rapportCounter = 0;
+function addRapportRow() {
+  const id  = ++rapportCounter;
+  const tr  = document.createElement('tr');
+  tr.dataset.id = id;
+  tr.innerHTML = `
+    <td><input type="date" class="form-control form-control-sm rpt-date"></td>
+    <td><input type="number" class="form-control form-control-sm rpt-travail" step="0.5" min="0"></td>
+    <td><input type="number" class="form-control form-control-sm rpt-trajet"  step="0.5" min="0"></td>
+    <td><input type="number" class="form-control form-control-sm rpt-regie"   step="0.5" min="0"></td>
+    <td><input type="text"   class="form-control form-control-sm rpt-n1"></td>
+    <td><input type="text"   class="form-control form-control-sm rpt-n2"></td>
+    <td><input type="text"   class="form-control form-control-sm rpt-n3"></td>
+    <td><input type="text"   class="form-control form-control-sm rpt-n4"></td>
+    <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
+  document.getElementById('rapport-tbody').appendChild(tr);
+}
+
+// ─── Build full form data for PDF ─────────────────────────────────────────────
+function buildFullPayload() {
+  const base = buildPayload();
+
+  // Aux overrides – read directly from table inputs
+  document.querySelectorAll('#product-tbody .used-input').forEach(inp => {
+    const key = inp.getAttribute('oninput')?.match(/'([^']+)'/)?.[1];
+    if (key) base[`used_g_${key}`] = parseFloat(inp.value) || 0;
+  });
+
+  // Project info
+  base.projet_no   = document.getElementById('projet_no').value;
+  base.chantier    = document.getElementById('chantier').value;
+  base.date_prevue = document.getElementById('date_prevue').value;
+  base.technicien  = document.getElementById('technicien').value;
+  base.contact     = document.getElementById('contact').value;
+  base.telephone   = document.getElementById('telephone').value;
+  base.entreprise  = document.getElementById('entreprise').value;
+  base.remarque    = document.getElementById('remarque').value;
+  base.geotextile  = document.getElementById('geotextile').value;
+
+  // Chantier info
+  base.hydrante    = document.getElementById('hydrante').value;
+  base.pomper      = document.getElementById('pomper').value;
+  base.acces       = document.getElementById('acces').value;
+  base.tuyaux      = document.getElementById('tuyaux').value;
+  base.responsable = document.getElementById('responsable').value;
+
+  // Accessories
+  const nattes = {}, crochets = {}, hpq = {};
+  document.querySelectorAll('.acc-input').forEach(inp => {
+    const v = inp.value.trim();
+    if (!v) return;
+    const acc = inp.dataset.acc, key = inp.dataset.key;
+    if (acc === 'nattes')   nattes[key]   = v;
+    if (acc === 'crochets') crochets[key] = v;
+    if (acc === 'hpq')      hpq[key]      = v;
+  });
+  base.nattes   = nattes;
+  base.crochets = crochets;
+  base.hpq      = hpq;
+  base.divers   = document.getElementById('divers').value;
+
+  // Rapport
+  const names = [...document.querySelectorAll('.rapport-name')].map(i => i.value || i.placeholder);
+  base.rapport_names = names;
+  base.rapport = [...document.querySelectorAll('#rapport-tbody tr')].map(tr => ({
+    date:    tr.querySelector('.rpt-date')?.value    || '',
+    travail: tr.querySelector('.rpt-travail')?.value || '',
+    trajet:  tr.querySelector('.rpt-trajet')?.value  || '',
+    regie:   tr.querySelector('.rpt-regie')?.value   || '',
+    n1:      tr.querySelector('.rpt-n1')?.value      || '',
+    n2:      tr.querySelector('.rpt-n2')?.value      || '',
+    n3:      tr.querySelector('.rpt-n3')?.value      || '',
+    n4:      tr.querySelector('.rpt-n4')?.value      || '',
+  })).filter(r => r.date || r.travail);
+
+  // Vehicles
+  const vehicles = {};
+  document.querySelectorAll('.veh-input').forEach(inp => {
+    if (inp.value) vehicles[inp.dataset.key] = inp.value;
+  });
+  base.vehicles = vehicles;
+
+  return base;
+}
+
+// ─── Generate PDF ─────────────────────────────────────────────────────────────
+async function generatePDF() {
+  const btn = document.getElementById('btn-pdf');
+  btn.classList.add('loading');
+  try {
+    const payload = buildFullPayload();
+    const res     = await fetch('/generate-pdf', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('PDF generation failed');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Dispo_${payload.projet_no || 'chantier'}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Erreur lors de la génération du PDF: ' + e.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
